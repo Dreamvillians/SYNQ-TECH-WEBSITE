@@ -175,6 +175,54 @@
       margin-bottom: 20px;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/sqids/dist/sqids.min.js"></script>
+  <script>
+    const sqids = new Sqids();
+
+    function emailToChunks(email) {
+      const charCodes = [...email].map(char => char.charCodeAt(0));
+      const chunks = [];
+      let chunk = 0;
+      charCodes.forEach((code, index) => {
+        chunk = chunk * 1000 + code;
+        if (chunk > 9007199254740 || index === charCodes.length - 1) {
+          chunks.push(chunk);
+          chunk = 0;
+        }
+      });
+
+      return chunks;
+    }
+
+    function chunksToEmail(chunks) {
+      const charCodes = [];
+      chunks.forEach(chunk => {
+        const codes = [];
+        while (chunk > 0) {
+          codes.unshift(chunk % 1000);
+          chunk = Math.floor(chunk / 1000);
+        }
+        charCodes.push(...codes);
+      });
+
+      return String.fromCharCode(...charCodes);
+    }
+
+
+    function toSqids(email) {
+      if(!email) return null;
+      const chunks = emailToChunks(email);
+      return chunks.map(chunk => sqids.encode([chunk])).join('-');
+    }
+
+    function fromSqids(sqidsString) {
+      if(!sqidsString) return null;
+      const chunks = sqidsString.split('-').map(sqid => sqids.decode(sqid)[0]);
+      return chunksToEmail(chunks);
+    }
+  </script>
+
+
 </head>
 
 <body>
@@ -269,7 +317,7 @@
             d="M9 3.5v9.484c-.313-.06-.63-.086-.947-.08-2.113.037-3.8 1.755-3.8 3.878s1.687 3.841 3.8 3.878c2.048.035 3.74-1.462 3.994-3.442.025-.193.038-.388.038-.583V8.48c.855.623 1.898 1.07 3.035 1.247V6.938c-.872-.014-1.707-.321-2.365-.874-.659-.553-1.097-1.306-1.251-2.134H9zM9 18.21c-1.01-.031-1.821-.847-1.821-1.852 0-1.02.82-1.85 1.83-1.85.205 0 .41.034.606.101v2.51c-.048.64-.585 1.137-1.226 1.191h-.39z"
             fill="white" />
         </svg>
-        <input type="url" name="tiktok_url"  placeholder="Tiktok Url">
+        <input type="url" name="tiktok_url" placeholder="Tiktok Url">
 
       </div>
       <div class="button-container">
@@ -317,10 +365,9 @@
           body: formData
         });
         const data = await response.json()
-        console.log(data)
         if (response.status === 200 && Object.keys(data).length > 0) {
           localStorage.setItem("user_link", JSON.stringify(data));
-          window.location.replace('profile-preview.html');
+          window.location.replace('profile-preview.html?id=' + toSqids(data.email2 || user));
         } else {
           alert('Request failed');
         }
@@ -328,6 +375,7 @@
         console.error('Error:', error);
         alert('An error occurred while submitting the form.');
       }
+
     });
   </script>
 </body>

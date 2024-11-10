@@ -618,9 +618,6 @@
           body: formData
         });
         const data = await response.json()
-        console.log(data)
-
-        throw new Error("ERROR")
         if (response.status === 200 && data?.email) {
           localStorage.setItem("user", data?.email);
           window.location.replace('dashboard.html');

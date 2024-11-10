@@ -17,7 +17,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
   <link href="css/slides-customized.min.css?p=eu3pl4hW&rnd=26129" rel="stylesheet" type="text/css" id="js-slides-css">
 
-
   <!-- Fonts and Material Icons -->
   <link rel="stylesheet" as="font" href="https://fonts.googleapis.com/css2?family=Material+Icons&display=swap"
     id="js-google-fonts" />
@@ -30,6 +29,52 @@
   <link href="css/swiper.min.css" rel="stylesheet" type="text/css">
   <link href="css/custom_5Hx3C0cw.css?p=eu3pl4hW&rnd=878998" rel="stylesheet" type="text/css">
   <link rel="preload" href="assets/svg/icon-set.svg?p=eu3pl4hW" as="image" type="image/svg+xml" crossorigin>
+  <script src="https://cdn.jsdelivr.net/npm/sqids/dist/sqids.min.js"></script>
+  <script>
+    const sqids = new Sqids();
+
+    function emailToChunks(email) {
+      const charCodes = [...email].map(char => char.charCodeAt(0));
+      const chunks = [];
+      let chunk = 0;
+      charCodes.forEach((code, index) => {
+        chunk = chunk * 1000 + code;
+        if (chunk > 9007199254740 || index === charCodes.length - 1) {
+          chunks.push(chunk);
+          chunk = 0;
+        }
+      });
+
+      return chunks;
+    }
+
+    function chunksToEmail(chunks) {
+      const charCodes = [];
+      chunks.forEach(chunk => {
+        const codes = [];
+        while (chunk > 0) {
+          codes.unshift(chunk % 1000);
+          chunk = Math.floor(chunk / 1000);
+        }
+        charCodes.push(...codes);
+      });
+
+      return String.fromCharCode(...charCodes);
+    }
+
+
+    function toSqids(email) {
+      if (!email) return null;
+      const chunks = emailToChunks(email);
+      return chunks.map(chunk => sqids.encode([chunk])).join('-');
+    }
+
+    function fromSqids(sqidsString) {
+      if (!sqidsString) return null;
+      const chunks = sqidsString.split('-').map(sqid => sqids.decode(sqid)[0]);
+      return chunksToEmail(chunks);
+    }
+  </script>
 
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id="></script>
@@ -43,7 +88,6 @@
 
     gtag('config', '');
   </script>
-
   <style>
     * {
       margin: 0;
@@ -207,6 +251,10 @@
       height: 30px;
       fill: #fff;
     }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 
   <script>
@@ -301,8 +349,21 @@
       <img src="https://via.placeholder.com/300" alt="Avatar">
     </div>
   </div>
+  <div class="save_contact">
+    <button>Save Contact as vCard</button> <br>
+    <a href="#">SAVE</a>
+  </div>
   <form action="#"></form>
 </body>
+<script>
+  const userId = new URL(location.href).searchParams.get('id')
+  const saveBtnsContainer = document.querySelector('.save_contact')
+  if (userId) {
+    saveBtnsContainer.classList.remove('hidden')
+  } else {
+    saveBtnsContainer.classList.add('hidden')
+  }
+</script>
 <script>
   const userProps = {
     'first_name': {
@@ -330,9 +391,53 @@
       icon: "🌍"
     }
   }
-  const user = localStorage.getItem('user')
-  // Function to create and append properties
+
+  const email = fromSqids(new URL(location.href).searchParams.get('id'));
+  const user = email ? email : localStorage.getItem('user')
+
+  function saveVCard(userData) {
+    const createVcfData = (userObject) =>
+      `BEGIN:VCARD
+VERSION:3.0
+N:${userObject.first_name} ${userObject.last_name}
+ORG:${userObject.company}
+TITLE:${userObject.occupation}
+TEL;TYPE=WORK,VOICE:${userObject.phone}
+TEL;TYPE=CELL,VOICE:${userObject.phone2}
+EMAIL;TYPE=WORK:${userObject.email}
+EMAIL;TYPE=OTHER:${userObject.email2}
+URL;TYPE=WORK:${userObject.website}
+URL;TYPE=FACEBOOK:${userObject.facebook_url}
+URL;TYPE=INSTAGRAM:${userObject.instagram_url}
+URL;TYPE=LINKEDIN:${userObject.linkedin_url}
+URL;TYPE=TIKTOK:${userObject.tiktok_url}
+NOTE:${userObject.about}
+END:VCARD
+      `.trim();
+    const vCardData = createVcfData(userData);
+    const blob = new Blob([vCardData], {
+      type: "text/vcard"
+    });
+    const link = document.createElement("a");
+    link.download = `${userData.first_name.replace(/\s+/g, '_')}_contact.vcf`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    
+  
+  
+    /// then save contact on iCloud or Google Contact
+  }
+  function displayPreviewData2(data)
+{
+
+  
+}
+
   function displayPreviewData(data) {
+
+    const saveBtn = document.querySelector('.save_contact button')
     const detailsContainer = document.querySelector(".preview-container .details");
     const socialIconsContainer = document.getElementById("socialIcons");
     const socialLinks = {
@@ -342,11 +447,10 @@
       tiktok_url: tiktokSvg,
       website: websiteSvg,
     };
+    
+    saveBtn.addEventListener('click', (_) => saveVCard(data))
 
     Object.keys(socialLinks).map((ky) => {
-      console.log({
-        ky
-      })
       const link = data[ky];
       const icon = socialLinks[ky];
 
@@ -360,12 +464,12 @@
 
     for (let key in data) {
       if (!Object.keys(userProps).includes(key)) continue;
-      const item = document.createElement("div");
-      item.className = "info-item";
+      const div = document.createElement("div");
+      div.className = "info-item";
       const formattedKey = (userProps[key].key || "").toUpperCase()
-      item.innerHTML =
+      div.innerHTML =
         `<span>${userProps[key]?.icon} ${formattedKey} :</span><span>${ (key == 'first_name')? data['first_name'] + " " + data['last_name']: data[key]}</span>`;
-      detailsContainer.appendChild(item);
+      detailsContainer.appendChild(div);
     }
   }
   const form = document.querySelector('form')
